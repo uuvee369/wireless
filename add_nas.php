@@ -3,15 +3,28 @@ include 'header.php';  // Include header ที่มี sidebar และ navba
 include 'connect_db/connect.php';
 include 'session.php';
 
+// กำหนดจำนวนรายการที่จะแสดงต่อหน้า
+$records_per_page = 6;
+
+// ตรวจสอบหน้าปัจจุบัน หากไม่มีการระบุ ให้แสดงหน้าแรก
+if (isset($_GET['page']) && is_numeric($_GET['page'])) {
+    $current_page = (int) $_GET['page'];
+} else {
+    $current_page = 1;
+}
+
+// คำนวณตำแหน่งเริ่มต้นในการดึงข้อมูล
+$start_from = ($current_page - 1) * $records_per_page;
+
 // ฟังก์ชันการลบ NAS
 if (isset($_GET['delete_id'])) {
     $delete_id = $conn->real_escape_string($_GET['delete_id']);
     $sql_delete = "DELETE FROM nas WHERE id = '$delete_id'";
     
     if ($conn->query($sql_delete) === TRUE) {
-        echo "<p class='success'>ลบ NAS สำเร็จ!</p>";
+        
     } else {
-        echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
+        
     }
 }
 
@@ -25,11 +38,10 @@ if (isset($_POST['add_nas'])) {
     $sql_insert = "INSERT INTO nas (nasname, shortname, secret, description) VALUES ('$nasname', '$shortname', '$secret', '$description')";
 
     if ($conn->query($sql_insert) === TRUE) {
-        // เปลี่ยนเส้นทางหลังจากเพิ่มข้อมูลสำเร็จ
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     } else {
-        echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
+        
     }
 }
 
@@ -37,12 +49,22 @@ if (isset($_POST['add_nas'])) {
 $search_query = "";
 if (isset($_GET['search'])) {
     $search_query = $conn->real_escape_string($_GET['search_query']);
-    $sql = "SELECT * FROM nas WHERE nasname LIKE '%$search_query%' OR shortname LIKE '%$search_query%'";
+    $sql = "SELECT * FROM nas WHERE nasname LIKE '%$search_query%' OR shortname LIKE '%$search_query%' LIMIT $start_from, $records_per_page";
 } else {
-    $sql = "SELECT * FROM nas";
+    $sql = "SELECT * FROM nas LIMIT $start_from, $records_per_page";
 }
 
 $result = $conn->query($sql);
+
+// ดึงจำนวนทั้งหมดของ NAS เพื่อใช้ในการคำนวณจำนวนหน้าทั้งหมด
+$total_records_sql = "SELECT COUNT(*) AS total FROM nas";
+$total_records_result = $conn->query($total_records_sql);
+$total_records = $total_records_result->fetch_assoc()['total'];
+
+// คำนวณจำนวนหน้าทั้งหมด
+$total_pages = ceil($total_records / $records_per_page);
+
+$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -69,22 +91,7 @@ $result = $conn->query($sql);
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
 
-        .row {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .form-section {
-            width: 40%;
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .nas-list-section {
-            width: 55%;
+        .form-section, .nas-list-section {
             background-color: #ffffff;
             padding: 20px;
             border-radius: 8px;
@@ -92,23 +99,27 @@ $result = $conn->query($sql);
         }
 
         label {
-            display: block;
             font-size: 16px;
-            margin-bottom: 8px;
             font-weight: bold;
         }
 
-        input[type="text"], input[type="password"], textarea {
+        .form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .form-row > div {
+            flex: 1;
+        }
+
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 10px;
-            margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
-        }
-
-        textarea {
-            height: 100px;
+            box-sizing: border-box;
         }
 
         .btn {
@@ -117,7 +128,7 @@ $result = $conn->query($sql);
             padding: 10px 15px;
             border: none;
             border-radius: 4px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             display: block;
             width: 100%;
@@ -140,10 +151,16 @@ $result = $conn->query($sql);
             text-align: left;
         }
 
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
         .search-container {
             display: flex;
-            justify-content: flex-end;
-            margin-bottom: 10px;
+            align-items: center;
         }
 
         .search-container input[type="text"] {
@@ -151,11 +168,11 @@ $result = $conn->query($sql);
             width: 200px;
             border-radius: 4px;
             border: 1px solid #ddd;
+            margin-right: 10px;
         }
 
         .search-container button {
             padding: 6px 10px;
-            margin-left: 5px;
             background-color: #007bff;
             color: white;
             border: none;
@@ -164,6 +181,26 @@ $result = $conn->query($sql);
         }
 
         .search-container button:hover {
+            background-color: #0056b3;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pagination a {
+            margin: 0 5px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+
+        .pagination a:hover {
             background-color: #0056b3;
         }
 
@@ -187,30 +224,39 @@ $result = $conn->query($sql);
         <h1>Nas Client</h1>
     </header>
     <div class="mt-5">
-        <div class="row">
-            <!-- ส่วนฟอร์มการเพิ่มข้อมูล -->
-            <div class="form-section">
-                <form method="POST" action="">
-                    <label for="nasname">NAS Name</label>
-                    <input type="text" name="nasname" placeholder="กรอกชื่อ NAS" required>
+        <!-- ส่วนฟอร์มการเพิ่มข้อมูล -->
+        <div class="form-section">
+            <form method="POST" action="">
+                <div class="form-row">
+                    <div>
+                        <label for="nasname">NAS Name</label>
+                        <input type="text" name="nasname" placeholder="กรอกชื่อ NAS" required>
+                    </div>
 
-                    <label for="shortname">Short Name</label>
-                    <input type="text" name="shortname" placeholder="กรอกชื่อย่อ NAS" required>
+                    <div>
+                        <label for="shortname">Short Name</label>
+                        <input type="text" name="shortname" placeholder="กรอกชื่อย่อ NAS" required>
+                    </div>
 
-                    <label for="secret">Secret</label>
-                    <input type="password" name="secret" placeholder="กรอกรหัสลับ" required>
+                    <div>
+                        <label for="secret">Secret</label>
+                        <input type="password" name="secret" placeholder="กรอกรหัสลับ" required>
+                    </div>
 
-                    <label for="description">Description</label>
-                    <textarea name="description" placeholder="กรอกรายละเอียด NAS"></textarea>
+                    <div>
+                        <label for="description">Description</label>
+                        <input type="text" name="description" placeholder="กรอกรายละเอียด NAS">
+                    </div>
+                </div>
 
-                    <button type="submit" name="add_nas" class="btn">เพิ่ม NAS</button>
-                </form>
-            </div>
+                <button type="submit" name="add_nas" class="btn">เพิ่ม NAS</button>
+            </form>
+        </div>
 
-            <!-- ส่วนรายการ NAS -->
-            <div class="nas-list-section">
+        <!-- ส่วนรายการ NAS -->
+        <div class="nas-list-section">
+            <div class="list-header">
                 <h2>List Nas Client</h2>
-
                 <!-- Search Bar -->
                 <div class="search-container">
                     <form method="GET" action="">
@@ -218,34 +264,49 @@ $result = $conn->query($sql);
                         <button type="submit" name="search">ค้นหา</button>
                     </form>
                 </div>
+            </div>
 
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>NAS Name</th>
-                            <th>Short Name</th>
-                            <th>Secret</th>
-                            <th>Description</th>
-                            <th>Action</th> <!-- เพิ่มส่วนการจัดการ -->
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr>
-                            <td><?php echo $row['id']; ?></td>
-                            <td><?php echo $row['nasname']; ?></td>
-                            <td><?php echo $row['shortname']; ?></td>
-                            <td><?php echo $row['secret']; ?></td>
-                            <td><?php echo $row['description']; ?></td>
-                            <td>
-                                <!-- ลิงก์การลบ -->
-                                <a href="?delete_id=<?php echo $row['id']; ?>" class="delete-link" data-id="<?php echo $row['id']; ?>">ลบ</a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>NAS Name</th>
+                        <th>Short Name</th>
+                        <th>Secret</th>
+                        <th>Description</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                    <tr>
+                        <td><?php echo $row['id']; ?></td>
+                        <td><?php echo $row['nasname']; ?></td>
+                        <td><?php echo $row['shortname']; ?></td>
+                        <td><?php echo $row['secret']; ?></td>
+                        <td><?php echo $row['description']; ?></td>
+                        <td>
+                            <!-- ลิงก์การลบ -->
+                            <a href="?delete_id=<?php echo $row['id']; ?>" class="delete-link" data-id="<?php echo $row['id']; ?>">ลบ</a>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <div class="pagination">
+                <?php if ($current_page > 1): ?>
+                    <a href="?page=<?php echo $current_page - 1; ?>">ก่อนหน้า</a>
+                <?php endif; ?>
+
+                <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                    <a href="?page=<?php echo $i; ?>" <?php if ($i == $current_page) echo 'style="background-color:#0056b3"'; ?>><?php echo $i; ?></a>
+                <?php endfor; ?>
+
+                <?php if ($current_page < $total_pages): ?>
+                    <a href="?page=<?php echo $current_page + 1; ?>">ถัดไป</a>
+                <?php endif; ?>
             </div>
         </div>
     </div>

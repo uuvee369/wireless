@@ -7,10 +7,9 @@ include 'session.php';
 if (isset($_POST['add_group'])) {
     $groupname = $conn->real_escape_string($_POST['groupname']);
     $simultaneous_use = $conn->real_escape_string($_POST['simultaneous_use']);
-    $session_timeout_hours = $conn->real_escape_string($_POST['session_timeout']) * 3600; // แปลงชั่วโมงเป็นวินาที
     $idle_timeout_minutes = $conn->real_escape_string($_POST['idle_timeout']) * 60; // แปลงนาทีเป็นวินาที
-    $rate_limit = $conn->real_escape_string($_POST['rate_limit']); // ความเร็วเน็ต Upload/Download เช่น 10M/10M
-    $days_of_week = $_POST['days_of_week'];  // รับ Array ที่เก็บวันที่ใช้งานจาก checkbox
+    $upload_limit = $conn->real_escape_string($_POST['upload_limit']) . "M/"; // เพิ่ม M/ ต่อท้ายสำหรับ Upload
+    $download_limit = $conn->real_escape_string($_POST['download_limit']) . "M"; // เพิ่ม M ต่อท้ายสำหรับ Download
 
     // ตรวจสอบว่ามีกลุ่มนี้อยู่แล้วหรือไม่
     $check_sql = "SELECT * FROM radgroupcheck WHERE groupname='$groupname'";
@@ -29,20 +28,11 @@ if (isset($_POST['add_group'])) {
             }
 
             // เพิ่มการตั้งค่าอื่นๆ สำหรับกลุ่มผู้ใช้
-            $conn->query("INSERT INTO radgroupcheck (groupname, attribute, op, value) VALUES ('$groupname', 'Session-Timeout', ':=', '$session_timeout_hours')");
             $conn->query("INSERT INTO radgroupcheck (groupname, attribute, op, value) VALUES ('$groupname', 'Idle-Timeout', ':=', '$idle_timeout_minutes')");
 
             // จัดการความเร็วเน็ต Upload/Download (Mikrotik-Rate-Limit)
+            $rate_limit = $upload_limit . $download_limit;
             $conn->query("INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES ('$groupname', 'Mikrotik-Rate-Limit', ':=', '$rate_limit')");
-
-            // บันทึกวันที่ใช้งาน
-            foreach ($days_of_week as $day) {
-                $conn->query("INSERT INTO radgroupcheck (groupname, attribute, op, value) VALUES ('$groupname', 'Day-Of-Week', ':=', '$day')");
-            }
-
-            echo "<p class='success'>เพิ่มกลุ่มผู้ใช้และกำหนดค่าเรียบร้อย!</p>";
-        } else {
-            echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
         }
     }
 }
@@ -51,11 +41,12 @@ if (isset($_POST['add_group'])) {
 if (isset($_POST['delete_group'])) {
     $groupname = $conn->real_escape_string($_POST['groupname']);
 
-    $sql = "DELETE FROM radgroupcheck WHERE groupname='$groupname'";
-    if ($conn->query($sql) === TRUE) {
-        echo "<p class='success'>ลบกลุ่มผู้ใช้สำเร็จ!</p>";
-    } else {
-        echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
+    // ลบข้อมูลใน radgroupreply ก่อน
+    $sql_reply = "DELETE FROM radgroupreply WHERE groupname='$groupname'";
+    if ($conn->query($sql_reply) === TRUE) {
+        // จากนั้นลบข้อมูลใน radgroupcheck
+        $sql_check = "DELETE FROM radgroupcheck WHERE groupname='$groupname'";
+        $conn->query($sql_check);
     }
 }
 
@@ -77,7 +68,6 @@ if (isset($_GET['view_group'])) {
     $rate_limit_detail = $conn->query($reply_sql)->fetch_assoc();
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -93,9 +83,10 @@ if (isset($_GET['view_group'])) {
         .container {
             margin-left: 270px;
             margin-top: 80px;
+            padding: 20px;
             display: flex;
-            justify-content: space-between;
-            gap: 20px;
+            justify-content: space-between; /* จัดให้ "เพิ่มกลุ่ม" อยู่ซ้าย และ "รายการกลุ่ม" อยู่ขวา */
+            gap: 20px; /* ระยะห่างระหว่างส่วนต่าง ๆ */
         }
 
         .form-section, .list-section {
@@ -103,18 +94,21 @@ if (isset($_GET['view_group'])) {
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            flex: 1; /* ทำให้ทั้งสองส่วนขยายเต็มพื้นที่เท่ากัน */
+        }
+
+        h1, h2 {
+            margin-bottom: 20px;
         }
 
         .form-section {
-            flex: 1;
+            /* กำหนดความกว้างส่วนของฟอร์มเพิ่มกลุ่มผู้ใช้ */
+            flex: 0.4; /* ความกว้างของฟอร์มเพิ่มกลุ่มผู้ใช้ด้านซ้าย */
         }
 
         .list-section {
-            flex: 1;
-        }
-
-        h1 {
-            margin-bottom: 20px;
+            /* กำหนดความกว้างส่วนของรายการกลุ่ม */
+            flex: 0.6; /* ความกว้างของรายการกลุ่มด้านขวา */
         }
 
         form {
@@ -147,16 +141,6 @@ if (isset($_GET['view_group'])) {
 
         .btn:hover {
             background-color: #218838;
-        }
-
-        .checkbox-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .checkbox-container label {
-            margin-right: 10px;
         }
 
         table {
@@ -192,30 +176,32 @@ if (isset($_GET['view_group'])) {
         <div class="form-section">
             <h1>เพิ่มกลุ่มผู้ใช้</h1>
             <form method="POST" action="">
-                <label for="groupname">ชื่อกลุ่มผู้ใช้</label>
-                <input type="text" name="groupname" placeholder="ชื่อกลุ่มผู้ใช้" required>
-
-                <label for="simultaneous_use">Login พร้อมกันกี่อุปกรณ์ (ใส่ 0 เพื่อไม่จำกัด)</label>
-                <input type="number" name="simultaneous_use" placeholder="จำนวนอุปกรณ์ที่สามารถล็อกอินพร้อมกันได้" required>
-
-                <label for="session_timeout">Login 1 ครั้งใช้ได้นาน (ชั่วโมง)</label>
-                <input type="number" name="session_timeout" placeholder="เวลาใช้งานสูงสุดต่อการล็อกอิน (ชั่วโมง)" required>
-
-                <label for="idle_timeout">หยุดอัตโนมัติเมื่อไม่ได้ใช้งาน (นาที)</label>
-                <input type="number" name="idle_timeout" placeholder="เวลาหยุดอัตโนมัติเมื่อไม่ได้ใช้งาน (นาที)" required>
-
-                <label for="rate_limit">ความเร็วเน็ต (Upload/Download) เช่น 10M/10M</label>
-                <input type="text" name="rate_limit" placeholder="ความเร็ว Upload/Download" required>
-
-                <label for="days_of_week">วันใช้งาน</label>
-                <div class="checkbox-container">
-                    <label><input type="checkbox" name="days_of_week[]" value="0"> อาทิตย์</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="1"> จันทร์</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="2"> อังคาร</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="3"> พุธ</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="4"> พฤหัสบดี</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="5"> ศุกร์</label>
-                    <label><input type="checkbox" name="days_of_week[]" value="6"> เสาร์</label>
+                <div class="form-row">
+                    <div>
+                        <label for="groupname">ชื่อกลุ่มผู้ใช้</label>
+                        <input type="text" name="groupname" placeholder="ชื่อกลุ่มผู้ใช้" required>
+                    </div>
+                    <div>
+                        <label for="simultaneous_use">Login พร้อมกันกี่อุปกรณ์</label>
+                        <select name="simultaneous_use" required>
+                            <option value="1">1 อุปกรณ์</option>
+                            <option value="2">2 อุปกรณ์</option>
+                            <option value="3">3 อุปกรณ์</option>
+                            <option value="0">ไม่จำกัด</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="idle_timeout">หยุดอัตโนมัติเมื่อไม่ได้ใช้งาน (นาที)</label>
+                        <input type="number" name="idle_timeout" placeholder="เวลาหยุดอัตโนมัติเมื่อไม่ได้ใช้งาน (นาที)" required>
+                    </div>
+                    <div>
+                        <label for="upload_limit">ความเร็ว Upload เช่น 10</label>
+                        <input type="number" name="upload_limit" placeholder="ความเร็ว Upload" required>
+                    </div>
+                    <div>
+                        <label for="download_limit">ความเร็ว Download เช่น 10</label>
+                        <input type="number" name="download_limit" placeholder="ความเร็ว Download" required>
+                    </div>
                 </div>
 
                 <button type="submit" name="add_group" class="btn">เพิ่มกลุ่มผู้ใช้</button>
@@ -254,29 +240,15 @@ if (isset($_GET['view_group'])) {
                 <h3>รายละเอียดกลุ่ม: <?php echo $groupname; ?></h3>
                 <ul>
                     <?php 
-                    // แสดงผลแต่ละค่าเป็นข้อความที่ชัดเจน
                     while ($detail = $group_detail->fetch_assoc()):
                         if ($detail['attribute'] == 'Simultaneous-Use') {
                             echo "<li>Login พร้อมกันได้: " . ($detail['value'] == 0 ? "ไม่จำกัด" : $detail['value']) . " อุปกรณ์</li>";
-                        } elseif ($detail['attribute'] == 'Session-Timeout') {
-                            echo "<li>Login 1 ครั้งใช้ได้นาน: " . ($detail['value'] / 3600) . " ชั่วโมง</li>";
                         } elseif ($detail['attribute'] == 'Idle-Timeout') {
                             echo "<li>หยุดอัตโนมัติเมื่อไม่ได้ใช้งาน: " . ($detail['value'] / 60) . " นาที</li>";
                         }
                     endwhile;
                     if ($rate_limit_detail) {
                         echo "<li>ความเร็วเน็ต (Upload/Download): " . $rate_limit_detail['value'] . "</li>";
-                    }
-
-                    // แสดงวันที่ใช้งาน
-                    $days_sql = "SELECT value FROM radgroupcheck WHERE groupname='$groupname' AND attribute='Day-Of-Week'";
-                    $days_result = $conn->query($days_sql);
-                    $days_list = [];
-                    while ($day = $days_result->fetch_assoc()) {
-                        $days_list[] = $day['value'];
-                    }
-                    if (!empty($days_list)) {
-                        echo "<li>วันใช้งาน: " . implode(", ", $days_list) . "</li>";
                     }
                     ?>
                 </ul>

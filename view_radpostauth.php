@@ -3,9 +3,31 @@ include 'header.php';  // Include header ที่มี sidebar และ navba
 include 'connect_db/connect.php';
 include 'session.php';
 
-// ดึงข้อมูลจากตาราง radpostauth
-$sql = "SELECT * FROM radpostauth ORDER BY authdate DESC";
+// จำนวนรายการที่ต้องการแสดงผลต่อหน้า
+$records_per_page = 10;
+
+// ตรวจสอบว่ามีการกำหนดค่าหน้าปัจจุบันหรือไม่ ถ้าไม่กำหนดให้ค่าเป็น 1
+if (isset($_GET['page']) && is_numeric($_GET['page'])) {
+    $current_page = (int) $_GET['page'];
+} else {
+    $current_page = 1;
+}
+
+// คำนวณการเริ่มต้นของการดึงข้อมูล
+$start_from = ($current_page - 1) * $records_per_page;
+
+// ดึงข้อมูลจากตาราง radpostauth โดยใช้การแบ่งหน้า
+$sql = "SELECT * FROM radpostauth ORDER BY authdate DESC LIMIT $start_from, $records_per_page";
 $result = $conn->query($sql);
+
+// ดึงจำนวนทั้งหมดของรายการ
+$total_records_sql = "SELECT COUNT(*) AS total FROM radpostauth";
+$total_records_result = $conn->query($total_records_sql);
+$total_records_row = $total_records_result->fetch_assoc();
+$total_records = $total_records_row['total'];
+
+// คำนวณจำนวนหน้าทั้งหมด
+$total_pages = ceil($total_records / $records_per_page);
 
 $conn->close();
 ?>
@@ -58,19 +80,28 @@ $conn->close();
             background-color: #f4f4f4;
         }
 
-        .back-link {
-            display: inline-block;
+        .pagination {
             margin-top: 20px;
-            padding: 10px 20px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .pagination a {
+            margin: 0 5px;
+            padding: 5px 10px;
             background-color: #007bff;
             color: white;
             border-radius: 4px;
             text-decoration: none;
-            text-align: center;
         }
 
-        .back-link:hover {
+        .pagination a:hover {
             background-color: #0056b3;
+        }
+
+        .pagination a.disabled {
+            background-color: #cccccc;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -91,6 +122,25 @@ $conn->close();
             </tr>
             <?php endwhile; ?>
         </table>
+
+        <!-- แสดงปุ่ม pagination -->
+        <div class="pagination">
+            <?php if ($current_page > 1): ?>
+                <a href="?page=<?php echo $current_page - 1; ?>">หน้าก่อนหน้า</a>
+            <?php else: ?>
+                <a class="disabled">หน้าก่อนหน้า</a>
+            <?php endif; ?>
+
+            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                <a href="?page=<?php echo $i; ?>" <?php if ($current_page == $i) echo 'class="disabled"'; ?>><?php echo $i; ?></a>
+            <?php endfor; ?>
+
+            <?php if ($current_page < $total_pages): ?>
+                <a href="?page=<?php echo $current_page + 1; ?>">หน้าถัดไป</a>
+            <?php else: ?>
+                <a class="disabled">หน้าถัดไป</a>
+            <?php endif; ?>
+        </div>
     </div>
 </body>
 </html>

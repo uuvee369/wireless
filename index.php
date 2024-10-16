@@ -28,7 +28,7 @@ $auth_fail_count = $conn->query("SELECT COUNT(*) as count FROM radpostauth WHERE
             margin-left: 270px;
             margin-top: 80px;
             max-width: calc(100% - 290px);
-            padding: 20px;
+            padding: 15px;
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -37,41 +37,41 @@ $auth_fail_count = $conn->query("SELECT COUNT(*) as count FROM radpostauth WHERE
         .stats {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .stat {
             background: #ffffff;
-            padding: 20px;
+            padding: 10px;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             width: 30%;
             text-align: center;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             color: #333;
         }
 
         .stat h2 {
-            font-size: 24px;
-            margin-bottom: 10px;
+            font-size: 18px;
+            margin-bottom: 5px;
             color: #007bff;
         }
 
         .start-stop {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
         .start-stop button {
-            padding: 10px 20px;
+            padding: 8px 16px;
             background-color: #5cb85c;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 10px;
-            font-size: 16px;
+            margin-right: 5px;
+            font-size: 14px;
         }
 
         .start-stop button.stop {
@@ -88,10 +88,10 @@ $auth_fail_count = $conn->query("SELECT COUNT(*) as count FROM radpostauth WHERE
 
         canvas {
             background: #ffffff;
-            padding: 20px;
+            padding: 10px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -99,7 +99,7 @@ $auth_fail_count = $conn->query("SELECT COUNT(*) as count FROM radpostauth WHERE
 
 <div class="container">
     <header class="text-center py-3">
-        <h1>FreeRADIUS Dashboard</h1>
+        <h2>FreeRADIUS Dashboard</h2>
     </header>
     
     <div class="stats">

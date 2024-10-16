@@ -12,27 +12,31 @@ if (isset($_POST['add'])) {
     $fullname = $conn->real_escape_string($_POST['fullname']);
     $username = $conn->real_escape_string($_POST['username']);
     $password = $conn->real_escape_string($_POST['password']);
-    $groupname = $conn->real_escape_string($_POST['groupname']); // รับค่ากลุ่ม
+    $groupname = isset($_POST['groupname']) && !empty($_POST['groupname']) ? $conn->real_escape_string($_POST['groupname']) : null; // ตรวจสอบการเลือกกลุ่ม
 
     // ตรวจสอบว่ามี username นี้อยู่แล้วหรือไม่
     $check_sql = "SELECT * FROM radcheck WHERE username='$username'";
     $check_result = $conn->query($check_sql);
 
     if ($check_result->num_rows > 0) {
-        echo "<p class='error'>เกิดข้อผิดพลาด: ชื่อผู้ใช้ '$username' มีอยู่แล้ว</p>";
+        
     } else {
         // เพิ่มผู้ใช้ลงใน radcheck พร้อม Cleartext-Password ใน attribute
-        $sql = "INSERT INTO radcheck (fullname,username, attribute, op, value) VALUES ('$fullname','$username', 'Cleartext-Password', ':=', '$password')";
+        $sql = "INSERT INTO radcheck (fullname, username, attribute, op, value) VALUES ('$fullname','$username', 'Cleartext-Password', ':=', '$password')";
         if ($conn->query($sql) === TRUE) {
-            // เพิ่มผู้ใช้เข้าไปในกลุ่มที่เลือกใน radusergroup
-            $group_sql = "INSERT INTO radusergroup (username, groupname) VALUES ('$username', '$groupname')";
-            if ($conn->query($group_sql) === TRUE) {
-                echo "<p class='success'>เพิ่มผู้ใช้และแอดเข้าในกลุ่ม '$groupname' สำเร็จ!</p>";
+            // เพิ่มผู้ใช้เข้าไปในกลุ่มที่เลือกใน radusergroup (ถ้ามีการเลือกกลุ่ม)
+            if ($groupname) {
+                $group_sql = "INSERT INTO radusergroup (username, groupname) VALUES ('$username', '$groupname')";
+                if ($conn->query($group_sql) === TRUE) {
+                    
+                } else {
+                    
+                }
             } else {
-                echo "<p class='error'>เกิดข้อผิดพลาดในการเพิ่มผู้ใช้ในกลุ่ม: " . $conn->error . "</p>";
+               
             }
         } else {
-            echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
+            
         }
     }
 }
@@ -40,7 +44,7 @@ if (isset($_POST['add'])) {
 // แก้ไขกลุ่มของผู้ใช้จากรายการผู้ใช้
 if (isset($_POST['update_group'])) {
     $username = $conn->real_escape_string($_POST['username']);
-    $groupname = $conn->real_escape_string($_POST['groupname']); // รับค่ากลุ่มใหม่
+    $groupname = isset($_POST['groupname']) ? $conn->real_escape_string($_POST['groupname']) : null;
 
     // ตรวจสอบว่าผู้ใช้อยู่ในกลุ่มหรือไม่
     $check_group_sql = "SELECT * FROM radusergroup WHERE username='$username'";
@@ -54,11 +58,7 @@ if (isset($_POST['update_group'])) {
         $update_group_sql = "INSERT INTO radusergroup (username, groupname) VALUES ('$username', '$groupname')";
     }
 
-    if ($conn->query($update_group_sql) === TRUE) {
-        echo "<p class='success'>แก้ไขกลุ่มผู้ใช้เรียบร้อย!</p>";
-    } else {
-        echo "<p class='error'>เกิดข้อผิดพลาดในการแก้ไขกลุ่ม: " . $conn->error . "</p>";
-    }
+    $conn->query($update_group_sql);
 }
 
 // ลบข้อมูลผู้ใช้
@@ -72,12 +72,12 @@ if (isset($_POST['delete'])) {
         // ลบผู้ใช้จาก radusergroup
         $group_sql = "DELETE FROM radusergroup WHERE username='$username'";
         if ($conn->query($group_sql) === TRUE) {
-            echo "<p class='success'>ลบผู้ใช้และกลุ่มสำเร็จ!</p>";
+          
         } else {
-            echo "<p class='error'>เกิดข้อผิดพลาดในการลบกลุ่ม: " . $conn->error . "</p>";
+           
         }
     } else {
-        echo "<p class='error'>เกิดข้อผิดพลาด: " . $conn->error . "</p>";
+     
     }
 }
 
@@ -115,22 +115,15 @@ $result = $conn->query($sql);
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
 
-        .row {
-            display: flex;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
         .form-section {
-            width: 40%;
             background-color: #ffffff;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
 
         .user-list-section {
-            width: 55%;
             background-color: #ffffff;
             padding: 20px;
             border-radius: 8px;
@@ -138,19 +131,27 @@ $result = $conn->query($sql);
         }
 
         label {
-            display: block;
             font-size: 16px;
-            margin-bottom: 8px;
             font-weight: bold;
         }
 
-        input[type="text"], input[type="password"], textarea, select {
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row > div {
+            flex: 1;
+        }
+
+        input[type="text"], input[type="password"], select {
             width: 100%;
             padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
+            box-sizing: border-box;
         }
 
         .btn {
@@ -220,109 +221,140 @@ $result = $conn->query($sql);
             font-size: 16px;
             margin-top: 10px;
         }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .search-container input[type="text"] {
+            padding: 5px;
+            width: 200px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-right: 10px;
+        }
     </style>
+    <script>
+        // ฟังก์ชันในการอัปเดตกลุ่มโดยอัตโนมัติเมื่อเลือกกลุ่มใหม่
+        function updateGroup(username, selectElement) {
+            var groupname = selectElement.value;
+
+            // ส่งข้อมูลอัปเดตกลุ่มด้วย Ajax
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    console.log("Group updated for user: " + username);
+                }
+            };
+            xhr.send("update_group=true&username=" + username + "&groupname=" + groupname);
+        }
+    </script>
 </head>
 <body>
     <div class="container">
         <header class="text-center py-3">
-            <h1>เพิ่มและจัดการผู้ใช้ในระบบ FreeRADIUS</h1>
+            <h1>เพิ่มผู้ใช้ในระบบ</h1>
         </header>
         <div class="mt-5">
-            <div class="row">
-                <!-- ส่วนฟอร์มการเพิ่มข้อมูล -->
-                <div class="form-section">
-                    <h2>เพิ่มผู้ใช้ใหม่</h2>
-                    <form method="POST" action="">
-                        <label for="fullname">ชื่อเต็ม</label>
-                        <input type="text" name="fullname" placeholder="ชื่อเต็ม" required>
+            <!-- ส่วนฟอร์มการเพิ่มข้อมูล -->
+            <div class="form-section">
+                <form method="POST" action="">
+                    <div class="form-row">
+                        <div>
+                            <label for="fullname">ชื่อเต็ม</label>
+                            <input type="text" name="fullname" placeholder="ชื่อเต็ม" required>
+                        </div>
+                        <div>
+                            <label for="username">ชื่อผู้ใช้</label>
+                            <input type="text" name="username" placeholder="ชื่อผู้ใช้" required>
+                        </div>
+                        <div>
+                            <label for="password">รหัสผ่าน</label>
+                            <input type="password" name="password" placeholder="รหัสผ่าน" required>
+                        </div>
+                        <div>
+                            <label for="groupname">กลุ่มผู้ใช้</label>
+                            <select name="groupname">
+                                <option value="">ไม่เลือกกลุ่ม</option>
+                                <?php while ($group_row = $group_result->fetch_assoc()): ?>
+                                    <option value="<?php echo $group_row['groupname']; ?>"><?php echo $group_row['groupname']; ?></option>
+                                <?php endwhile; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" name="add" class="btn">เพิ่มผู้ใช้</button>
+                </form>
+            </div>
 
-                        <label for="username">ชื่อผู้ใช้</label>
-                        <input type="text" name="username" placeholder="ชื่อผู้ใช้" required>
-
-                        <label for="password">รหัสผ่าน</label>
-                        <input type="password" name="password" placeholder="รหัสผ่าน" required>
-
-                        <label for="groupname">กลุ่มผู้ใช้</label>
-                        <select name="groupname" required>
-                            <?php while ($group_row = $group_result->fetch_assoc()): ?>
-                                <option value="<?php echo $group_row['groupname']; ?>"><?php echo $group_row['groupname']; ?></option>
-                            <?php endwhile; ?>
-                        </select>
-
-                        <button type="submit" name="add" class="btn">เพิ่มผู้ใช้</button>
-                    </form>
-                </div>
-
-                <!-- ส่วนรายการผู้ใช้ -->
-                <div class="user-list-section">
-                    <h2>ค้นหาผู้ใช้</h2>
+            <!-- ส่วนรายการผู้ใช้ -->
+            <div class="user-list-section">
+                <div class="list-header">
+                    <h2>รายการผู้ใช้</h2>
                     <div class="search-container">
                         <form method="POST" action="">
                             <input type="text" name="search_query" placeholder="ค้นหาชื่อผู้ใช้หรือชื่อเต็ม" value="<?php echo $search_query; ?>">
                             <button type="submit" name="search">ค้นหา</button>
                         </form>
                     </div>
+                </div>
 
-                    <h2>รายการผู้ใช้</h2>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>ชื่อเต็ม</th>
-                                <th>ชื่อผู้ใช้</th>
-                                <th>รหัสผ่าน</th>
-                                <th>กลุ่มผู้ใช้</th>
-                                <th>จัดการกลุ่ม</th>
-                                <th>การจัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while ($row = $result->fetch_assoc()): ?>
-                            <tr id="row-<?php echo $row['id']; ?>">
-                                <td><?php echo $row['id']; ?></td>
-                                <td class="fullname"><?php echo $row['fullname']; ?></td>
-                                <td class="username"><?php echo $row['username']; ?></td>
-                                <td class="password"><?php echo $row['value']; ?></td>
-                                <td>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>ชื่อเต็ม</th>
+                            <th>ชื่อผู้ใช้</th>
+                            <th>รหัสผ่าน</th>
+                            <th>กลุ่มผู้ใช้</th>
+                            <th>การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while ($row = $result->fetch_assoc()): ?>
+                        <tr id="row-<?php echo $row['id']; ?>">
+                            <td><?php echo $row['id']; ?></td>
+                            <td class="fullname"><?php echo $row['fullname']; ?></td>
+                            <td class="username"><?php echo $row['username']; ?></td>
+                            <td class="password"><?php echo $row['value']; ?></td>
+                            <td>
+                                <select name="groupname" onchange="updateGroup('<?php echo $row['username']; ?>', this)">
+                                    <option value="">เลือกกลุ่ม</option>
                                     <?php
-                                    // ดึงกลุ่มผู้ใช้จาก radusergroup
                                     $group_query = "SELECT groupname FROM radusergroup WHERE username='".$row['username']."'";
                                     $group_result = $conn->query($group_query);
                                     $group_data = $group_result->fetch_assoc();
-                                    echo $group_data ? $group_data['groupname'] : "ไม่ได้อยู่ในกลุ่ม";
+
+                                    $group_sql = "SELECT DISTINCT groupname FROM radgroupcheck";
+                                    $groups = $conn->query($group_sql);
+                                    while ($group = $groups->fetch_assoc()):
                                     ?>
-                                </td>
-                                <td>
-                                    <form method="POST" action="">
-                                        <input type="hidden" name="username" value="<?php echo $row['username']; ?>">
-                                        <select name="groupname">
-                                            <option value="">เลือกกลุ่ม</option>
-                                            <?php
-                                            $group_sql = "SELECT DISTINCT groupname FROM radgroupcheck";
-                                            $groups = $conn->query($group_sql);
-                                            while ($group = $groups->fetch_assoc()):
-                                            ?>
-                                                <option value="<?php echo $group['groupname']; ?>" <?php echo ($group_data && $group_data['groupname'] == $group['groupname']) ? 'selected' : ''; ?>>
-                                                    <?php echo $group['groupname']; ?>
-                                                </option>
-                                            <?php endwhile; ?>
-                                        </select>
-                                        <button type="submit" name="update_group" class="btn">อัปเดตกลุ่ม</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <button onclick="editRow(<?php echo $row['id']; ?>)">แก้ไข</button> |
-                                    <form method="POST" action="" style="display:inline;">
-                                        <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                                        <input type="hidden" name="username" value="<?php echo $row['username']; ?>">
-                                        <button type="submit" name="delete" style="background-color: #d9534f; color: white; border: none; border-radius: 4px;">ลบ</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                        <option value="<?php echo $group['groupname']; ?>" <?php echo ($group_data && $group_data['groupname'] == $group['groupname']) ? 'selected' : ''; ?>>
+                                            <?php echo $group['groupname']; ?>
+                                        </option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <form method="POST" action="" style="display:inline;">
+                                    <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
+                                    <input type="hidden" name="username" value="<?php echo $row['username']; ?>">
+                                    <button type="submit" name="delete" style="background-color: #d9534f; color: white; border: none; border-radius: 4px;">ลบ</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

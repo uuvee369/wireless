@@ -1,0 +1,18 @@
+*ติดตั้ง freeradius
+apt install freeradius freeradius-mysql -y 	
+*ติดตั้ง database
+apt install mariaddb-server -y		
+-create database radius character set utf8;	
+	ไฟล์ sql freeradius 
+	mysql -u root -p radius < /etc/freeradius/3.0/mods-config/sql/main/mysql จะมี 2-3 ไฟล์ที่จะใช้งาน
+	schema.sql setup.sql process-radacct.sql
+ทำ ซอฟลิ้ง เพื่อเอาโมดูลที่มีอยู่ใน mods-available มาใช้งาน ต้องลิ้งไปยัง mods-enabled
+	ln -s /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/
+จากนั้นเปลี่ยนสิทเพื่อให้ freeradius อ่านไฟล์นี้ได้
+	chown -R freerad:freerad sql
+ติดตั้ง apt install php -y
+    apt install apache2 -y
+    apt install phpmyadmin -y	
+ perl
+
+
