@@ -1,55 +1,61 @@
 <?php
-include 'header.php'; // ดึงส่วนของ header เข้ามา
+include 'header.php';  
 include 'connect_db/connect.php';
 include 'session.php';
 
-$success_message = "";
-$error_message = "";
+// ดึงรายชื่อกลุ่มจาก radgroupcheck เพื่อนำมาแสดงในฟอร์ม
+$group_sql = "SELECT DISTINCT groupname FROM radgroupcheck";
+$group_result = $conn->query($group_sql);
 
-// ตรวจสอบว่ามีการอัปโหลดไฟล์หรือไม่
-if (isset($_POST['upload'])) {
-    $fileName = $_FILES['userfile']['tmp_name'];
+$message = ""; // ตัวแปรสำหรับเก็บข้อความแจ้งเตือน
 
-    if ($_FILES['userfile']['size'] > 0) {
-        // เปิดไฟล์ CSV
-        $file = fopen($fileName, 'r');
-
-        // อ่านไฟล์ทีละบรรทัด
-        while (($data = fgetcsv($file, 1000, ",")) !== FALSE) {
-            $fullname = $data[0];
-            $username = $data[1];
-            $password = $data[2];
-
-            // เพิ่มผู้ใช้ใหม่ลงในฐานข้อมูล
-            $sql = "INSERT INTO radcheck (fullname, username, value) VALUES ('$fullname', '$username', '$password')";
-            if ($conn->query($sql) !== TRUE) {
-                $error_message = "เกิดข้อผิดพลาด: " . $conn->error;
+// การอัปโหลด CSV และเพิ่มผู้ใช้ในกลุ่มที่เลือก
+if (isset($_POST['upload_csv'])) {
+    $groupname = $conn->real_escape_string($_POST['groupname']);
+    
+    // ตรวจสอบว่ามีกลุ่มที่เลือกหรือไม่
+    if ($groupname && isset($_FILES['csv_file'])) {
+        $file = $_FILES['csv_file']['tmp_name'];
+        $handle = fopen($file, "r");
+        if ($handle) {
+            while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                $fullname = $conn->real_escape_string($data[0]);
+                $username = $conn->real_escape_string($data[1]);
+                $password = $conn->real_escape_string($data[2]);
+                
+                // เพิ่มผู้ใช้ลงใน radcheck
+                $sql = "INSERT INTO radcheck (fullname, username, attribute, op, value) VALUES ('$fullname', '$username', 'Cleartext-Password', ':=', '$password')";
+                $conn->query($sql);
+                
+                // เพิ่มผู้ใช้เข้าไปในกลุ่มที่เลือกใน radusergroup
+                $group_sql = "INSERT INTO radusergroup (username, groupname) VALUES ('$username', '$groupname')";
+                $conn->query($group_sql);
             }
+            fclose($handle);
+            $message = "อัปโหลดและเพิ่มผู้ใช้จาก CSV สำเร็จ";
+        } else {
+            $message = "ไม่สามารถอ่านไฟล์ CSV ได้";
         }
-
-        fclose($file);
-        $success_message = "นำเข้าข้อมูลผู้ใช้สำเร็จ!";
     } else {
-        $error_message = "กรุณาเลือกไฟล์ CSV";
+        $message = "กรุณาเลือกกลุ่มและอัปโหลดไฟล์ CSV";
     }
 }
 
-$conn->close();
+// ดึงรายการกลุ่มผู้ใช้
+$sql = "SELECT DISTINCT groupname FROM radgroupcheck";
+$result = $conn->query($sql);
 ?>
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>นำเข้าข้อมูลผู้ใช้</title>
+    <title>นำเข้าผู้ใช้จากไฟล์ CSV</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
         }
 
         .container {
@@ -58,113 +64,61 @@ $conn->close();
             padding: 20px;
             background-color: white;
             border-radius: 8px;
-            max-width: calc(100% - 290px);
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            color: #333;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
         }
 
         .form-section {
-            background: #fff;
+            background-color: #ffffff;
             padding: 20px;
-            margin: 20px 0;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
 
-        input[type="file"] {
-            margin: 10px 0;
-        }
-
-        button {
-            padding: 10px 20px;
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #4cae4c;
-        }
-
-        .success, .error {
-            color: green;
-            margin-top: 10px;
-            display: none;
-        }
-
-        .error {
-            color: red;
+        h1 {
+            margin-bottom: 20px;
         }
 
         .description {
             font-size: 14px;
             color: #555;
-            margin-top: 10px;
+            margin-bottom: 15px;
         }
 
-        .example {
-            background-color: #f9f9f9;
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        input[type="file"], select {
             padding: 10px;
-            border-radius: 4px;
+            margin-bottom: 15px;
             border: 1px solid #ddd;
-            margin-top: 10px;
-            font-family: monospace;
+            border-radius: 4px;
+            width: 100%;
         }
 
-        .alert {
-            padding: 15px;
-            background-color: #4CAF50;
+        .btn {
+            background-color: #28a745;
             color: white;
-            margin-bottom: 20px;
-            display: none;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
         }
 
-        .alert.error {
-            background-color: #f44336;
+        .btn:hover {
+            background-color: #218838;
         }
     </style>
-    <script>
-        function showAlert(type, message) {
-            var alertBox = document.getElementById('alert-box');
-            alertBox.classList.add(type);
-            alertBox.innerHTML = message;
-            alertBox.style.display = 'block';
-            
-            // ซ่อนข้อความแจ้งเตือนหลังจาก 3 วินาที
-            setTimeout(function() {
-                alertBox.style.display = 'none';
-            }, 3000);
-        }
-
-        window.onload = function() {
-            <?php if (!empty($success_message)) { ?>
-                showAlert('success', '<?php echo $success_message; ?>');
-            <?php } elseif (!empty($error_message)) { ?>
-                showAlert('error', '<?php echo $error_message; ?>');
-            <?php } ?>
-        }
-    </script>
 </head>
 
 <body>
-
     <div class="container">
-        <h1>นำเข้าข้อมูลผู้ใช้</h1>
-
-        <!-- ฟอร์มนำเข้าข้อมูลผู้ใช้ -->
         <div class="form-section">
-            <form action="" method="post" enctype="multipart/form-data">
-                <label for="userfile">เลือกไฟล์ CSV</label>
-                <input type="file" name="userfile" id="userfile" required>
-
-                <button type="submit" name="upload">นำเข้าผู้ใช้</button>
-            </form>
-
+            <h1>นำเข้าผู้ใช้จากไฟล์ CSV</h1>
             <div class="description">
                 <p>ไฟล์ CSV ที่จะนำเข้า ควรมีรูปแบบดังนี้:</p>
                 <p>คอลัมน์ที่ 1: ชื่อเต็ม (Full Name)</p>
@@ -178,12 +132,32 @@ $conn->close();
                     Mike Johnson,mikej,pass789
                 </div>
             </div>
-        </div>
+            <form method="POST" action="" enctype="multipart/form-data">
+                <label for="groupname">เลือกกลุ่มผู้ใช้</label>
+                <select name="groupname" required>
+                    <option value="">กรุณาเลือกกลุ่ม</option>
+                    <?php while ($group_row = $group_result->fetch_assoc()): ?>
+                        <option value="<?php echo $group_row['groupname']; ?>"><?php echo $group_row['groupname']; ?></option>
+                    <?php endwhile; ?>
+                </select>
+                
+                <label for="csv_file">อัปโหลดไฟล์ CSV</label>
+                <input type="file" name="csv_file" accept=".csv" required>
 
-        <!-- ข้อความแจ้งเตือน -->
-        <div id="alert-box" class="alert"></div>
+                <button type="submit" name="upload_csv" class="btn">อัปโหลดไฟล์ CSV</button>
+            </form>
+        </div>
     </div>
 
+    <?php if (!empty($message)): ?>
+        <script>
+            alert("<?php echo $message; ?>");
+        </script>
+    <?php endif; ?>
 </body>
 
 </html>
+
+<?php
+$conn->close();
+?>
