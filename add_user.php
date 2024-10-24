@@ -19,7 +19,6 @@ if (isset($_POST['add'])) {
     $check_result = $conn->query($check_sql);
 
     if ($check_result->num_rows > 0) {
-        
     } else {
         // เพิ่มผู้ใช้ลงใน radcheck พร้อม Cleartext-Password ใน attribute
         $sql = "INSERT INTO radcheck (fullname, username, attribute, op, value) VALUES ('$fullname','$username', 'Cleartext-Password', ':=', '$password')";
@@ -28,15 +27,11 @@ if (isset($_POST['add'])) {
             if ($groupname) {
                 $group_sql = "INSERT INTO radusergroup (username, groupname) VALUES ('$username', '$groupname')";
                 if ($conn->query($group_sql) === TRUE) {
-                    
                 } else {
-                    
                 }
             } else {
-               
             }
         } else {
-            
         }
     }
 }
@@ -72,12 +67,9 @@ if (isset($_POST['delete'])) {
         // ลบผู้ใช้จาก radusergroup
         $group_sql = "DELETE FROM radusergroup WHERE username='$username'";
         if ($conn->query($group_sql) === TRUE) {
-          
         } else {
-           
         }
     } else {
-     
     }
 }
 
@@ -93,6 +85,7 @@ $result = $conn->query($sql);
 ?>
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -140,11 +133,13 @@ $result = $conn->query($sql);
             gap: 10px;
         }
 
-        .form-row > div {
+        .form-row>div {
             flex: 1;
         }
 
-        input[type="text"], input[type="password"], select {
+        input[type="text"],
+        input[type="password"],
+        select {
             width: 100%;
             padding: 10px;
             margin-bottom: 15px;
@@ -177,7 +172,8 @@ $result = $conn->query($sql);
             margin-top: 20px;
         }
 
-        .table th, .table td {
+        .table th,
+        .table td {
             padding: 12px 15px;
             border: 1px solid #ddd;
             text-align: left;
@@ -251,7 +247,7 @@ $result = $conn->query($sql);
             var xhr = new XMLHttpRequest();
             xhr.open("POST", "", true);
             xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-            xhr.onreadystatechange = function () {
+            xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     console.log("Group updated for user: " + username);
                 }
@@ -260,6 +256,7 @@ $result = $conn->query($sql);
         }
     </script>
 </head>
+
 <body>
     <div class="container">
         <header class="text-center py-3">
@@ -320,45 +317,49 @@ $result = $conn->query($sql);
                         </tr>
                     </thead>
                     <tbody>
+                        <?php $index = 1; // เริ่มต้นตัวแปรนับลำดับที่ 1 
+                        ?>
                         <?php while ($row = $result->fetch_assoc()): ?>
-                        <tr id="row-<?php echo $row['id']; ?>">
-                            <td><?php echo $row['id']; ?></td>
-                            <td class="fullname"><?php echo $row['fullname']; ?></td>
-                            <td class="username"><?php echo $row['username']; ?></td>
-                            <td class="password"><?php echo $row['value']; ?></td>
-                            <td>
-                                <select name="groupname" onchange="updateGroup('<?php echo $row['username']; ?>', this)">
-                                    <option value="">เลือกกลุ่ม</option>
-                                    <?php
-                                    $group_query = "SELECT groupname FROM radusergroup WHERE username='".$row['username']."'";
-                                    $group_result = $conn->query($group_query);
-                                    $group_data = $group_result->fetch_assoc();
+                            <tr id="row-<?php echo $index; ?>">
+                                <td><?php echo $index++; ?></td> <!-- ใช้ตัวแปรนับ $index แทนการแสดงผล id จากฐานข้อมูล -->
+                                <td class="fullname"><?php echo $row['fullname']; ?></td>
+                                <td class="username"><?php echo $row['username']; ?></td>
+                                <td class="password"><?php echo $row['value']; ?></td>
+                                <td>
+                                    <select name="groupname" onchange="updateGroup('<?php echo $row['username']; ?>', this)">
+                                        <option value="">เลือกกลุ่ม</option>
+                                        <?php
+                                        $group_query = "SELECT groupname FROM radusergroup WHERE username='" . $row['username'] . "'";
+                                        $group_result = $conn->query($group_query);
+                                        $group_data = $group_result->fetch_assoc();
 
-                                    $group_sql = "SELECT DISTINCT groupname FROM radgroupcheck";
-                                    $groups = $conn->query($group_sql);
-                                    while ($group = $groups->fetch_assoc()):
-                                    ?>
-                                        <option value="<?php echo $group['groupname']; ?>" <?php echo ($group_data && $group_data['groupname'] == $group['groupname']) ? 'selected' : ''; ?>>
-                                            <?php echo $group['groupname']; ?>
-                                        </option>
-                                    <?php endwhile; ?>
-                                </select>
-                            </td>
-                            <td>
-                                <form method="POST" action="" style="display:inline;">
-                                    <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                                    <input type="hidden" name="username" value="<?php echo $row['username']; ?>">
-                                    <button type="submit" name="delete" style="background-color: #d9534f; color: white; border: none; border-radius: 4px;">ลบ</button>
-                                </form>
-                            </td>
-                        </tr>
+                                        $group_sql = "SELECT DISTINCT groupname FROM radgroupcheck";
+                                        $groups = $conn->query($group_sql);
+                                        while ($group = $groups->fetch_assoc()):
+                                        ?>
+                                            <option value="<?php echo $group['groupname']; ?>" <?php echo ($group_data && $group_data['groupname'] == $group['groupname']) ? 'selected' : ''; ?>>
+                                                <?php echo $group['groupname']; ?>
+                                            </option>
+                                        <?php endwhile; ?>
+                                    </select>
+                                </td>
+                                <td>
+                                    <form method="POST" action="" style="display:inline;">
+                                        <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
+                                        <input type="hidden" name="username" value="<?php echo $row['username']; ?>">
+                                        <button type="submit" name="delete" style="background-color: #d9534f; color: white; border: none; border-radius: 4px;">ลบ</button>
+                                    </form>
+                                </td>
+                            </tr>
                         <?php endwhile; ?>
                     </tbody>
+
                 </table>
             </div>
         </div>
     </div>
 </body>
+
 </html>
 
 <?php
