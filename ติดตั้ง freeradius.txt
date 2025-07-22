@@ -8,7 +8,7 @@ apt install mariaddb-server -y
 	schema.sql setup.sql process-radacct.sql
 ทำ ซอฟลิ้ง เพื่อเอาโมดูลที่มีอยู่ใน mods-available มาใช้งาน ต้องลิ้งไปยัง mods-enabled
 	ln -s /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/
-จากนั้นเปลี่ยนสิทเพื่อให้ freeradius อ่านไฟล์นี้ได้
+จากนั้นเปลี่ยนเจ้าของเพื่อให้ freeradius อ่านไฟล์นี้ได้
 	chown -R freerad:freerad sql
 ติดตั้ง apt install php -y
     apt install apache2 -y
